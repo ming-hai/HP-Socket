@@ -67,3 +67,37 @@ void ABORT(int iErrno, LPCSTR lpszFile, int iLine, LPCSTR lpszFunc, LPCSTR lpszT
 {
 	__EXIT_FN_((void (*)(int))abort, "abort", nullptr, iErrno, lpszFile, iLine, lpszFunc, lpszTitle);
 }
+
+BOOL SetSequenceThreadName(HANDLE hThread, LPCTSTR lpszPrefix, volatile UINT& vuiSeq)
+{
+#if _WIN32_WINNT < _WIN32_WINNT_WIN10
+	::SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return FALSE;
+#else
+	UINT uiSequence = ::InterlockedIncrement(&vuiSeq);
+	return SetThreadName(hThread, lpszPrefix, uiSequence);
+#endif
+}
+
+BOOL SetThreadName(HANDLE hThread, LPCTSTR lpszPrefix, UINT uiSequence)
+{
+	CString strName;
+	strName.Format(_T("%s%u"), lpszPrefix, uiSequence);
+
+	ASSERT(strName.GetLength() < MAX_PATH);
+
+	return SetThreadName(hThread, strName);
+}
+
+BOOL SetThreadName(HANDLE hThread, LPCTSTR lpszName)
+{
+#if _WIN32_WINNT < _WIN32_WINNT_WIN10
+	::SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return FALSE;
+#else
+	if(hThread == nullptr)
+		hThread = SELF_THREAD;
+
+	return SUCCEEDED(::SetThreadDescription(hThread, CT2W(lpszName)));
+#endif
+}

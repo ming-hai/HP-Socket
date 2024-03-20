@@ -46,6 +46,18 @@ static const int s_iUdpCloseNotifySize = ARRAY_SIZE(s_szUdpCloseNotify);
 const hp_addr hp_addr::ANY_ADDR4(AF_INET, TRUE);
 const hp_addr hp_addr::ANY_ADDR6(AF_INET6, TRUE);
 
+BOOL SetCurrentWorkerThreadName()
+{
+	return SetWorkerThreadDefaultName(0);
+}
+
+BOOL SetWorkerThreadDefaultName(THR_ID tid)
+{
+	static volatile UINT _s_uiSeq = MAXUINT;
+
+	return ::SetSequenceThreadName(tid, DEFAULT_WORKER_THREAD_PREFIX, _s_uiSeq);
+}
+
 LPCTSTR GetSocketErrorDesc(EnSocketError enCode)
 {
 	switch(enCode)
@@ -341,10 +353,10 @@ BOOL FreeHostIPAddresses(LPTIPAddr* lppIPAddr)
 
 BOOL sockaddr_IN_2_A(const HP_SOCKADDR& addr, ADDRESS_FAMILY& usFamily, LPTSTR lpszAddress, int& iAddressLen, USHORT& usPort)
 {
-	BOOL isOK	= FALSE;
+	BOOL isOK = FALSE;
 
-	usFamily	= addr.family;
-	usPort		= addr.Port();
+	usFamily  = addr.family;
+	usPort	  = addr.Port();
 
 	if(::InetNtop(addr.family, addr.SinAddr(), lpszAddress, iAddressLen))
 	{
@@ -432,6 +444,36 @@ BOOL SetMultiCastSocketOptions(SOCKET sock, const HP_SOCKADDR& bindAddr, const H
 	}
 
 	return TRUE;
+}
+
+int WaitForSocketWrite(SOCKET sock, DWORD dwTimeout)
+{
+	timeval tv = {(__time_t)(dwTimeout / 1000), (__suseconds_t)((dwTimeout % 1000) * 1000)};
+
+	fd_set wfds, efds;
+	FD_ZERO(&wfds);
+	FD_ZERO(&efds);
+	FD_SET(sock, &wfds);
+	FD_SET(sock, &efds);
+
+	int rs = NO_EINTR_INT(select(sock + 1, nullptr, &wfds, &efds, &tv));
+
+	if(rs <= 0) return ((rs == 0) ? ERROR_TIMEOUT : ENSURE_ERROR(ERROR_CANT_WAIT));
+	
+	if(FD_ISSET(sock, &efds))
+	{
+		rs = SSO_GetError(sock);
+		return ((rs != NO_ERROR && rs != SOCKET_ERROR) ? rs : ENSURE_ERROR(ERROR_CANT_WAIT));
+	}
+
+	VERIFY(FD_ISSET(sock, &wfds));
+
+	rs = SSO_GetError(sock);
+
+	if(!IS_NO_ERROR(rs))
+		return ((rs != SOCKET_ERROR) ? rs : ENSURE_ERROR(ERROR_CANT_WAIT));
+
+	return NO_ERROR;
 }
 
 ULONGLONG NToH64(ULONGLONG value)
@@ -599,7 +641,7 @@ int SSO_ReuseAddress(SOCKET sock, EnReuseAddressPolicy opt)
 
 	BOOL bReusePortSupported =
 #if defined(__linux) || defined(__linux__)
-		::IsKernelVersionAbove(3, 9, 0);
+		::IsKernelVersionAbove(2, 6, 32);
 #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__) || defined(__MACH__)
 		TRUE;
 #else

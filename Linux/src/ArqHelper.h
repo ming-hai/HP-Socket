@@ -341,7 +341,7 @@ public:
 				return ERROR_INVALID_STATE;
 
 			rs = ::ikcp_send(m_kcp, (const char*)pBuffer, iLength);
-			if(rs != NO_ERROR) rs = ERROR_INCORRECT_SIZE;
+			if(rs < 0) rs = ERROR_INCORRECT_SIZE;
 		}
 
 		if(rs == NO_ERROR)
@@ -722,7 +722,7 @@ private:
 		::ReleaseGCObj(m_lsGCSession, m_dwSessionLockTime, bForce);
 	}
 
-	virtual BOOL OnReadyRead(PVOID pv, UINT events) override
+	virtual BOOL OnReadyRead(const TDispContext* pContext, PVOID pv, UINT events) override
 	{
 
 		if(events & _EPOLL_ALL_ERROR_EVENTS)

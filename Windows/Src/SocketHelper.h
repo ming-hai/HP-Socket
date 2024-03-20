@@ -770,6 +770,14 @@ struct TClientCloseContext
 /******************************************** 公共帮助方法 ********************************************/
 /*****************************************************************************************************/
 
+/* 默认工作线程前缀 */
+#define DEFAULT_WORKER_THREAD_PREFIX	_T("hp-worker-")
+
+/* 设置当前工作线程名称 */
+BOOL SetCurrentWorkerThreadName();
+/* 设置工作线程默认名称 */
+BOOL SetWorkerThreadDefaultName(HANDLE hThread);
+
 /* 获取错误描述文本 */
 LPCTSTR GetSocketErrorDesc(EnSocketError enCode);
 /* 确定地址簇 */
@@ -901,6 +909,7 @@ int SSO_SendTimeOut			(SOCKET sock, int ms);
 int SSO_ReuseAddress		(SOCKET sock, EnReuseAddressPolicy opt);
 int SSO_ExclusiveAddressUse	(SOCKET sock, BOOL bExclusive = TRUE);
 int SSO_UDP_ConnReset		(SOCKET sock, BOOL bNewBehavior = TRUE);
+int SSO_GetError			(SOCKET sock);
 
 /************************************************************************
 名称：Socket 操作方法
@@ -961,6 +970,8 @@ int NoBlockReceiveFrom(SOCKET sock, TUdpBufferObj* pBufferObj);
 int NoBlockReceiveFromNotCheck(SOCKET sock, TUdpBufferObj* pBufferObj);
 /* 设置组播选项 */
 BOOL SetMultiCastSocketOptions(SOCKET sock, const HP_SOCKADDR& bindAddr, const HP_SOCKADDR& castAddr, int iMCTtl, BOOL bMCLoop);
+/* 等待连接 */
+int WaitForSocketWrite(SOCKET sock, DWORD dwTimeout);
 
 // CP_XXX -> UNICODE
 BOOL CodePageToUnicodeEx(int iCodePage, const char szSrc[], int iSrcLength, WCHAR szDest[], int& iDestLength);

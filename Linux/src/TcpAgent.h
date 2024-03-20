@@ -74,15 +74,15 @@ protected:
 #endif
 
 private:
-	virtual BOOL OnBeforeProcessIo(PVOID pv, UINT events)			override;
-	virtual VOID OnAfterProcessIo(PVOID pv, UINT events, BOOL rs)	override;
-	virtual VOID OnCommand(TDispCommand* pCmd)						override;
-	virtual BOOL OnReadyRead(PVOID pv, UINT events)					override;
-	virtual BOOL OnReadyWrite(PVOID pv, UINT events)				override;
-	virtual BOOL OnHungUp(PVOID pv, UINT events)					override;
-	virtual BOOL OnError(PVOID pv, UINT events)						override;
-	virtual VOID OnDispatchThreadStart(THR_ID tid)					override;
-	virtual VOID OnDispatchThreadEnd(THR_ID tid)					override;
+	virtual BOOL OnBeforeProcessIo(const TDispContext* pContext, PVOID pv, UINT events)			override;
+	virtual VOID OnAfterProcessIo(const TDispContext* pContext, PVOID pv, UINT events, BOOL rs)	override;
+	virtual VOID OnCommand(const TDispContext* pContext, TDispCommand* pCmd)					override;
+	virtual BOOL OnReadyRead(const TDispContext* pContext, PVOID pv, UINT events)				override;
+	virtual BOOL OnReadyWrite(const TDispContext* pContext, PVOID pv, UINT events)				override;
+	virtual BOOL OnHungUp(const TDispContext* pContext, PVOID pv, UINT events)					override;
+	virtual BOOL OnError(const TDispContext* pContext, PVOID pv, UINT events)					override;
+	virtual VOID OnDispatchThreadStart(THR_ID tid)												override;
+	virtual VOID OnDispatchThreadEnd(THR_ID tid)												override;
 
 public:
 	virtual BOOL IsSecure				() {return FALSE;}
@@ -91,8 +91,9 @@ public:
 	virtual BOOL GetConnectionExtra(CONNID dwConnID, PVOID* ppExtra);
 
 	virtual void SetReuseAddressPolicy		(EnReuseAddressPolicy enReusePolicy)	{ENSURE_HAS_STOPPED(); m_enReusePolicy		= enReusePolicy;}
-	virtual void SetSendPolicy				(EnSendPolicy enSendPolicy)				{ENSURE_HAS_STOPPED(); m_enSendPolicy		= enSendPolicy;}
-	virtual void SetOnSendSyncPolicy		(EnOnSendSyncPolicy enOnSendSyncPolicy)	{ENSURE_HAS_STOPPED(); m_enOnSendSyncPolicy	= enOnSendSyncPolicy;}
+	virtual void SetSendPolicy				(EnSendPolicy enSendPolicy)				{ENSURE_HAS_STOPPED(); ASSERT(m_enSendPolicy == enSendPolicy);}
+	virtual void SetOnSendSyncPolicy		(EnOnSendSyncPolicy enOnSendSyncPolicy)	{ENSURE_HAS_STOPPED(); ASSERT(m_enOnSendSyncPolicy == enOnSendSyncPolicy);}
+	virtual void SetSyncConnectTimeout		(DWORD dwSyncConnectTimeout)	{ENSURE_HAS_STOPPED(); m_dwSyncConnectTimeout		= dwSyncConnectTimeout;}
 	virtual void SetMaxConnectionCount		(DWORD dwMaxConnectionCount)	{ENSURE_HAS_STOPPED(); m_dwMaxConnectionCount		= dwMaxConnectionCount;}
 	virtual void SetWorkerThreadCount		(DWORD dwWorkerThreadCount)		{ENSURE_HAS_STOPPED(); m_dwWorkerThreadCount		= dwWorkerThreadCount;}
 	virtual void SetSocketBufferSize		(DWORD dwSocketBufferSize)		{ENSURE_HAS_STOPPED(); m_dwSocketBufferSize			= dwSocketBufferSize;}
@@ -109,6 +110,7 @@ public:
 	virtual EnReuseAddressPolicy GetReuseAddressPolicy	()	{return m_enReusePolicy;}
 	virtual EnSendPolicy GetSendPolicy					()	{return m_enSendPolicy;}
 	virtual EnOnSendSyncPolicy GetOnSendSyncPolicy		()	{return m_enOnSendSyncPolicy;}
+	virtual DWORD GetSyncConnectTimeout		()	{return m_dwSyncConnectTimeout;}
 	virtual DWORD GetMaxConnectionCount		()	{return m_dwMaxConnectionCount;}
 	virtual DWORD GetWorkerThreadCount		()	{return m_dwWorkerThreadCount;}
 	virtual DWORD GetSocketBufferSize		()	{return m_dwSocketBufferSize;}
@@ -212,15 +214,15 @@ private:
 private:
 	int CreateClientSocket(LPCTSTR lpszRemoteAddress, USHORT usPort, LPCTSTR lpszLocalAddress, USHORT usLocalPort, SOCKET& soClient, HP_SOCKADDR& addr);
 	int PrepareConnect	(CONNID& dwConnID, SOCKET soClient);
-	int ConnectToServer	(CONNID dwConnID, LPCTSTR lpszRemoteHostName, SOCKET soClient, const HP_SOCKADDR& addr, PVOID pExtra);
+	int ConnectToServer	(CONNID dwConnID, LPCTSTR lpszRemoteHostName, SOCKET& soClient, const HP_SOCKADDR& addr, PVOID pExtra);
 
-	VOID HandleCmdSend		(CONNID dwConnID);
-	VOID HandleCmdUnpause	(CONNID dwConnID);
-	VOID HandleCmdDisconnect(CONNID dwConnID, BOOL bForce);
-	BOOL HandleConnect		(TAgentSocketObj* pSocketObj, UINT events);
-	BOOL HandleReceive		(TAgentSocketObj* pSocketObj, int flag);
-	BOOL HandleSend			(TAgentSocketObj* pSocketObj, int flag);
-	BOOL HandleClose		(TAgentSocketObj* pSocketObj, EnSocketCloseFlag enFlag, UINT events);
+	VOID HandleCmdSend		(const TDispContext* pContext, CONNID dwConnID);
+	VOID HandleCmdUnpause	(const TDispContext* pContext, CONNID dwConnID);
+	VOID HandleCmdDisconnect(const TDispContext* pContext, CONNID dwConnID, BOOL bForce);
+	BOOL HandleConnect		(const TDispContext* pContext, TAgentSocketObj* pSocketObj, UINT events);
+	BOOL HandleReceive		(const TDispContext* pContext, TAgentSocketObj* pSocketObj, int flag);
+	BOOL HandleSend			(const TDispContext* pContext, TAgentSocketObj* pSocketObj, int flag);
+	BOOL HandleClose		(const TDispContext* pContext, TAgentSocketObj* pSocketObj, EnSocketCloseFlag enFlag, UINT events);
 
 	int SendInternal	(TAgentSocketObj* pSocketObj, const WSABUF pBuffers[], int iCount);
 	BOOL SendItem		(TAgentSocketObj* pSocketObj, TItem* pItem, BOOL& bBlocked);
@@ -233,7 +235,8 @@ public:
 	, m_bAsyncConnect			(TRUE)
 	, m_enReusePolicy			(RAP_ADDR_ONLY)
 	, m_enSendPolicy			(SP_PACK)
-	, m_enOnSendSyncPolicy		(OSSP_NONE)
+	, m_enOnSendSyncPolicy		(OSSP_RECEIVE)
+	, m_dwSyncConnectTimeout	(DEFAULT_SYNC_CONNECT_TIMEOUT)
 	, m_dwMaxConnectionCount	(DEFAULT_CONNECTION_COUNT)
 	, m_dwWorkerThreadCount		(DEFAULT_WORKER_THREAD_COUNT)
 	, m_dwSocketBufferSize		(DEFAULT_TCP_SOCKET_BUFFER_SIZE)
@@ -260,6 +263,7 @@ private:
 	EnReuseAddressPolicy m_enReusePolicy;
 	EnSendPolicy m_enSendPolicy;
 	EnOnSendSyncPolicy m_enOnSendSyncPolicy;
+	DWORD m_dwSyncConnectTimeout;
 	DWORD m_dwMaxConnectionCount;
 	DWORD m_dwWorkerThreadCount;
 	DWORD m_dwSocketBufferSize;
@@ -282,6 +286,8 @@ private:
 	EnSocketError			m_enLastError;
 	HP_SOCKADDR				m_soAddr;
 
+	CReceiveBuffersPtr		m_rcBuffers;
+
 	CPrivateHeap			m_phSocket;
 	CBufferObjPool			m_bfObjPool;
 
@@ -291,7 +297,6 @@ private:
 	
 	TAgentSocketObjPtrList	m_lsFreeSocket;
 	TAgentSocketObjPtrQueue	m_lsGCSocket;
-	TReceiveBufferMap		m_rcBufferMap;
 
 	CIODispatcher			m_ioDispatcher;
 };

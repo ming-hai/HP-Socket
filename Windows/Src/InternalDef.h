@@ -37,7 +37,7 @@
 /* 最大连接时长 */
 #define MAX_CONNECTION_PERIOD					(MAXLONG / 2)
 /* IOCP 处理接收事件时最大额外读取次数 */
-#define MAX_IOCP_CONTINUE_RECEIVE				30
+#define MAX_IOCP_CONTINUE_RECEIVE				100
 
 /* Server/Agent 最大连接数 */
 #define MAX_CONNECTION_COUNT					(5 * 1000 * 1000)
@@ -57,6 +57,8 @@
 #define DEFAULT_CLIENT_FREE_BUFFER_POOL_SIZE	60
 /* Client 默认内存块缓存池回收阀值 */
 #define DEFAULT_CLIENT_FREE_BUFFER_POOL_HOLD	60
+/* Client/Agent 默认同步连接超时时间 */
+#define DEFAULT_SYNC_CONNECT_TIMEOUT			10000
 /* IPv4 默认绑定地址 */
 #define  DEFAULT_IPV4_BIND_ADDRESS				_T("0.0.0.0")
 /* IPv6 默认绑定地址 */

@@ -129,6 +129,7 @@ BOOL CTcpAgent::CheckParams()
 {
 	if	((m_enSendPolicy >= SP_PACK && m_enSendPolicy <= SP_DIRECT)								&&
 		(m_enOnSendSyncPolicy >= OSSP_NONE && m_enOnSendSyncPolicy <= OSSP_RECEIVE)				&&
+		((int)m_dwSyncConnectTimeout > 0)														&&
 		((int)m_dwMaxConnectionCount > 0 && m_dwMaxConnectionCount <= MAX_CONNECTION_COUNT)		&&
 		((int)m_dwWorkerThreadCount > 0 && m_dwWorkerThreadCount <= MAX_WORKER_THREAD_COUNT)	&&
 		((int)m_dwSocketBufferSize >= MIN_SOCKET_BUFFER_SIZE)									&&
@@ -838,6 +839,8 @@ void CTcpAgent::CloseCompletePort()
 
 UINT WINAPI CTcpAgent::WorkerThreadProc(LPVOID pv)
 {
+	::SetCurrentWorkerThreadName();
+
 	CTcpAgent* pAgent = (CTcpAgent*)pv;
 	pAgent->OnWorkerThreadStart(SELF_THREAD_ID);
 
@@ -1146,34 +1149,29 @@ BOOL CTcpAgent::Connect(LPCTSTR lpszRemoteAddress, USHORT usPort, CONNID* pdwCon
 {
 	ASSERT(lpszRemoteAddress && usPort != 0);
 
-	DWORD result	= NO_ERROR;
-	SOCKET soClient	= INVALID_SOCKET;
+	if(!HasStarted())
+	{
+		::SetLastError(ERROR_INVALID_STATE);
+		return FALSE;
+	}
 
 	if(!pdwConnID)
-		pdwConnID	= CreateLocalObject(CONNID);
+		pdwConnID = CreateLocalObject(CONNID);
 
 	*pdwConnID = 0;
 
 	HP_SOCKADDR addr;
+	HP_SCOPE_HOST host(lpszRemoteAddress);
+	SOCKET soClient = INVALID_SOCKET;
 
-	if(!HasStarted())
-		result = ERROR_INVALID_STATE;
-	else
+	DWORD result = CreateClientSocket(host.addr, usPort, lpszLocalAddress, usLocalPort, soClient, addr);
+
+	if(result == NO_ERROR)
 	{
-		HP_SCOPE_HOST host(lpszRemoteAddress);
-
-		result = CreateClientSocket(host.addr, usPort, lpszLocalAddress, usLocalPort, soClient, addr);
+		result = PrepareConnect(*pdwConnID, soClient);
 
 		if(result == NO_ERROR)
-		{
-			result = PrepareConnect(*pdwConnID, soClient);
-
-			if(result == NO_ERROR)
-			{
-				result	 = ConnectToServer(*pdwConnID, host.name, soClient, addr, pExtra);
-				soClient = INVALID_SOCKET;
-			}
-		}
+			result = ConnectToServer(*pdwConnID, host.name, soClient, addr, pExtra);
 	}
 
 	if(result != NO_ERROR)
@@ -1254,7 +1252,7 @@ DWORD CTcpAgent::PrepareConnect(CONNID& dwConnID, SOCKET soClient)
 	return NO_ERROR;
 }
 
-DWORD CTcpAgent::ConnectToServer(CONNID dwConnID, LPCTSTR lpszRemoteHostName, SOCKET soClient, const HP_SOCKADDR& addr, PVOID pExtra)
+DWORD CTcpAgent::ConnectToServer(CONNID dwConnID, LPCTSTR lpszRemoteHostName, SOCKET& soClient, const HP_SOCKADDR& addr, PVOID pExtra)
 {
 	TBufferObj* pBufferObj = GetFreeBufferObj();
 	TSocketObj* pSocketObj = GetFreeSocketObj(dwConnID, soClient);
@@ -1266,10 +1264,10 @@ DWORD CTcpAgent::ConnectToServer(CONNID dwConnID, LPCTSTR lpszRemoteHostName, SO
 	DWORD result	= NO_ERROR;
 	BOOL bNeedFree	= TRUE;
 
+	ENSURE(IS_NO_ERROR(::SSO_NoBlock(pSocketObj->socket)));
+
 	if(m_bAsyncConnect)
 	{
-		ENSURE(::SSO_NoBlock(pSocketObj->socket) == NO_ERROR);
-
 		if(::CreateIoCompletionPort((HANDLE)pSocketObj->socket, m_hCompletePort, (ULONG_PTR)pSocketObj, 0))
 			result = ::PostConnect(m_pfnConnectEx, pSocketObj->socket, addr, pBufferObj);
 		else
@@ -1277,24 +1275,30 @@ DWORD CTcpAgent::ConnectToServer(CONNID dwConnID, LPCTSTR lpszRemoteHostName, SO
 	}
 	else
 	{
-		if(::connect(pSocketObj->socket, addr.Addr(), addr.AddrSize()) != SOCKET_ERROR)
+		result = ::connect(pSocketObj->socket, addr.Addr(), addr.AddrSize());
+
+		if(IS_NO_ERROR(result) || IS_WOULDBLOCK_ERROR())
 		{
-			ENSURE(::SSO_NoBlock(pSocketObj->socket) == NO_ERROR);
+			if(IS_HAS_ERROR(result))
+				result = ::WaitForSocketWrite(pSocketObj->socket, m_dwSyncConnectTimeout);
 
-			if(::CreateIoCompletionPort((HANDLE)pSocketObj->socket, m_hCompletePort, (ULONG_PTR)pSocketObj, 0))
+			if(IS_NO_ERROR(result))
 			{
-				pSocketObj->SetConnected();
-
-				if(TriggerFireConnect(pSocketObj) != HR_ERROR)
+				if(::CreateIoCompletionPort((HANDLE)pSocketObj->socket, m_hCompletePort, (ULONG_PTR)pSocketObj, 0))
 				{
-					result		= DoReceive(pSocketObj, pBufferObj);
-					bNeedFree	= FALSE;
+					pSocketObj->SetConnected();
+
+					if(TriggerFireConnect(pSocketObj) != HR_ERROR)
+					{
+						result		= DoReceive(pSocketObj, pBufferObj);
+						bNeedFree	= FALSE;
+					}
+					else
+						result = ENSURE_ERROR_CANCELLED;
 				}
 				else
-					result = ENSURE_ERROR_CANCELLED;
+					result = ::GetLastError();
 			}
-			else
-				result = ::GetLastError();
 		}
 		else
 			result = ::WSAGetLastError();
@@ -1307,6 +1311,8 @@ DWORD CTcpAgent::ConnectToServer(CONNID dwConnID, LPCTSTR lpszRemoteHostName, SO
 			AddFreeSocketObj(pSocketObj, SCF_NONE);
 			AddFreeBufferObj(pBufferObj);
 		}
+
+		soClient = INVALID_SOCKET;
 	}
 
 	return result;

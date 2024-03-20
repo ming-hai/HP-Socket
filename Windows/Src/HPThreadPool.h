@@ -34,6 +34,7 @@
 #pragma pop_macro("_ATL_NO_DEFAULT_LIBS")
 
 #include "../Include/HPSocket/SocketInterface.h"
+#include "Common/FuncHelper.h"
 #include "Common/SysHelper.h"
 #include "InternalDef.h"
 
@@ -92,9 +93,9 @@ class CHPThreadPool : public IHPThreadPool
 		CHPThreadPool* m_pthPool;
 	};
 
-	typedef CThreadPool<CWorker> CInnerThreadPool;
-
 	friend class CWorker;
+
+	typedef CThreadPool<CWorker>	CInnerThreadPool;
 
 private:
 	enum EnSubmitResult{SUBMIT_OK, SUBMIT_FULL, SUBMIT_ERROR};
@@ -142,6 +143,7 @@ public:
 	: m_pListener(pListener)
 	, m_evWait(TRUE, TRUE)
 	{
+		MakePrefix();
 		Reset(FALSE);
 	}
 
@@ -152,6 +154,14 @@ public:
 
 private:
 	void Reset(BOOL bSetWaitEvent = TRUE);
+	void MakePrefix();
+
+private:
+	static LPCTSTR			POOLED_THREAD_PREFIX;
+	static volatile UINT	sm_uiNum;
+
+	volatile UINT			m_uiSeq;
+	CString					m_strPrefix;
 
 private:
 	IHPThreadPoolListener*	m_pListener;

@@ -346,3 +346,48 @@ void ABORT(int iErrno, LPCSTR lpszFile, int iLine, LPCSTR lpszFunc, LPCSTR lpszT
 {
 	__EXIT_FN_((void (*)(int))abort, "abort", nullptr, iErrno, lpszFile, iLine, lpszFunc, lpszTitle);
 }
+
+BOOL SetSequenceThreadName(THR_ID tid, LPCTSTR lpszPrefix, volatile UINT& vuiSeq)
+{
+	UINT uiSequence = InterlockedIncrement(&vuiSeq);
+	return SetThreadName(tid, lpszPrefix, uiSequence);
+}
+
+BOOL SetThreadName(THR_ID tid, LPCTSTR lpszPrefix, UINT uiSequence)
+{
+	int iMaxSeqLength = (int)(MAX_THREAD_NAME_LENGTH - lstrlen(lpszPrefix));
+
+	ASSERT(iMaxSeqLength > 0);
+
+	if(iMaxSeqLength <= 0)
+	{
+		::SetLastError(ERROR_OUT_OF_RANGE);
+		return FALSE;
+	}
+
+	ULONGLONG uiDiv = 1;
+
+	for(int i = 0; i < iMaxSeqLength; i++)
+		uiDiv *= 10;
+
+	uiSequence = (UINT)(uiSequence % uiDiv);
+
+	CString strName;
+	strName.Format(_T("%s%u"), lpszPrefix, uiSequence);
+
+	return SetThreadName(tid, strName);
+}
+
+BOOL SetThreadName(THR_ID tid, LPCTSTR lpszName)
+{
+	ASSERT(lstrlen(lpszName) <= MAX_THREAD_NAME_LENGTH);
+
+	if(tid == 0)
+		tid = SELF_THREAD_ID;
+
+	int rs = pthread_setname_np(tid, CT2A(lpszName));
+
+	CHECK_ERROR_CODE(rs)
+
+	return TRUE;
+}
