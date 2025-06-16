@@ -135,22 +135,16 @@ BOOL CUdpClient::CheckStoping(DWORD dwCurrentThreadID)
 
 BOOL CUdpClient::CreateClientSocket(LPCTSTR lpszRemoteAddress, HP_SOCKADDR& addrRemote, USHORT usPort, LPCTSTR lpszBindAddress, HP_SOCKADDR& addrBind)
 {
-	HP_SCOPE_HOST host(lpszRemoteAddress);
-
-	if(!::GetSockAddrByHostName(host.addr, usPort, addrRemote))
-		return FALSE;
-
 	if(::IsStrNotEmpty(lpszBindAddress))
 	{
 		if(!::sockaddr_A_2_IN(lpszBindAddress, 0, addrBind))
 			return FALSE;
-
-		if(addrRemote.family != addrBind.family)
-		{
-			::WSASetLastError(WSAEAFNOSUPPORT);
-			return FALSE;
-		}
 	}
+
+	HP_SCOPE_HOST host(lpszRemoteAddress);
+
+	if(!::GetSockAddrByHostName(host.addr, usPort, addrRemote, addrBind.family))
+		return FALSE;
 
 	m_soClient = socket(addrRemote.family, SOCK_DGRAM, IPPROTO_UDP);
 

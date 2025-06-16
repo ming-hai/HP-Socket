@@ -846,7 +846,7 @@ BOOL IsIPAddress(LPCTSTR lpszAddress, __out EnIPAddrType* penType = nullptr);
 /* 通过主机名获取 IP 地址 */
 BOOL GetIPAddress(LPCTSTR lpszHost, __out LPTSTR lpszIP, __inout int& iIPLenth, __out EnIPAddrType& enType);
 /* 通过主机名获取 HP_SOCKADDR */
-BOOL GetSockAddrByHostName(LPCTSTR lpszHost, USHORT usPort, __out HP_SOCKADDR& addr);
+BOOL GetSockAddrByHostName(LPCTSTR lpszHost, USHORT usPort, __out HP_SOCKADDR& addr, ADDRESS_FAMILY af = AF_UNSPEC);
 /* 通过主机名获取 HP_SOCKADDR */
 BOOL GetSockAddrByHostNameDirectly(LPCTSTR lpszHost, USHORT usPort, HP_SOCKADDR &addr);
 /* 枚举主机 IP 地址 */

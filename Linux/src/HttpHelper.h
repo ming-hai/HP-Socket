@@ -1238,6 +1238,7 @@ private:
 template<class T, class S> http_parser_settings THttpObjT<T, S>::sm_settings = 
 {
 	on_message_begin,
+	nullptr,	// on_protocol
 	on_url,
 	on_status,
 	nullptr,	// on_method
@@ -1249,6 +1250,7 @@ template<class T, class S> http_parser_settings THttpObjT<T, S>::sm_settings =
 	on_headers_complete,
 	on_body,
 	on_message_complete,
+	nullptr,	// on_protocol_complete
 	on_url_complete,
 	on_status_complete,
 	nullptr,	// on_method_complete

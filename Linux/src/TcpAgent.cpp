@@ -302,9 +302,6 @@ BOOL CTcpAgent::Connect(LPCTSTR lpszRemoteAddress, USHORT usPort, CONNID* pdwCon
 
 int CTcpAgent::CreateClientSocket(LPCTSTR lpszRemoteAddress, USHORT usPort, LPCTSTR lpszLocalAddress, USHORT usLocalPort, SOCKET& soClient, HP_SOCKADDR& addr)
 {
-	if(!::GetSockAddrByHostName(lpszRemoteAddress, usPort, addr))
-		return ERROR_ADDRNOTAVAIL;
-
 	HP_SOCKADDR* lpBindAddr = &m_soAddr;
 
 	if(::IsStrNotEmpty(lpszLocalAddress))
@@ -315,12 +312,11 @@ int CTcpAgent::CreateClientSocket(LPCTSTR lpszRemoteAddress, USHORT usPort, LPCT
 			return ::WSAGetLastError();
 	}
 
-	BOOL bBind = lpBindAddr->IsSpecified();
-
-	if(bBind && lpBindAddr->family != addr.family)
-		return ERROR_AFNOSUPPORT;
+	if(!::GetSockAddrByHostName(lpszRemoteAddress, usPort, addr, lpBindAddr->family))
+		return ::WSAGetLastError();
 
 	int result	= NO_ERROR;
+	BOOL bBind	= lpBindAddr->IsSpecified();
 	soClient	= socket(addr.family, SOCK_STREAM, IPPROTO_TCP);
 
 	if(soClient == INVALID_SOCKET)

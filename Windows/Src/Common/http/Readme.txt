@@ -7,6 +7,9 @@
 llhttp Modifications
 --------------------
 1. llhttp_api.c ignore warning: 4715
-1. llhttp_url.c ignore warning: 4456
-2. llhttp_internal.c ignore warning: 4244, 4152, 4055, 4702
-3. llhttp.h, llhttp_url.h : LLHTTP_STRICT_MODE set default value 1
+2. llhttp_url.c ignore warning: 4456
+3. llhttp_internal.c ignore warning: 4244, 4152, 4055, 4702
+4. llhttp_url.h : LLHTTP_STRICT_MODE set default value 1
+5. llhttp.h : delete codes below
+    #elif defined(_WIN32)
+    #define LLHTTP_EXPORT __declspec(dllexport)

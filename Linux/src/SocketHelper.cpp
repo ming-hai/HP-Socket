@@ -172,14 +172,23 @@ BOOL GetIPAddress(LPCTSTR lpszHost, LPTSTR lpszIP, int& iIPLen, EnIPAddrType& en
 	return sockaddr_IN_2_A(addr, usFamily, lpszIP, iIPLen, usPort);
 }
 
-BOOL GetSockAddrByHostName(LPCTSTR lpszHost, USHORT usPort, HP_SOCKADDR& addr)
+BOOL GetSockAddrByHostName(LPCTSTR lpszHost, USHORT usPort, HP_SOCKADDR& addr, ADDRESS_FAMILY af)
 {
 	addr.family = DetermineAddrFamily(lpszHost);
 
-	if(addr.family != AF_UNSPEC)
-		return GetSockAddr(lpszHost, usPort, addr);
+	if(addr.family == AF_UNSPEC)
+	{
+		addr.family = af;
+		return GetSockAddrByHostNameDirectly(lpszHost, usPort, addr);
+	}
 
-	return GetSockAddrByHostNameDirectly(lpszHost, usPort, addr);
+	if(addr.family != af && af != AF_UNSPEC)
+	{
+		::WSASetLastError(ERROR_AFNOSUPPORT);
+		return FALSE;
+	}
+
+	return GetSockAddr(lpszHost, usPort, addr);
 }
 
 BOOL GetSockAddrByHostNameDirectly(LPCTSTR lpszHost, USHORT usPort, HP_SOCKADDR& addr)
@@ -189,13 +198,10 @@ BOOL GetSockAddrByHostNameDirectly(LPCTSTR lpszHost, USHORT usPort, HP_SOCKADDR&
 	addrinfo* pInfo	= nullptr;
 	addrinfo hints	= {0};
 
-#if defined(__ANDROID__)
-	hints.ai_flags		= 0;
-#else
+#if !defined(__ANDROID__)
 	hints.ai_flags		= (AI_V4MAPPED | AI_ADDRCONFIG);
 #endif
 	hints.ai_family		= addr.family;
-	hints.ai_socktype	= SOCK_STREAM;
 
 	int rs = ::getaddrinfo(CT2A(lpszHost), nullptr, &hints, &pInfo);
 

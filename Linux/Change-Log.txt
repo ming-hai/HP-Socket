@@ -1,4 +1,18 @@
 ﻿==========================================================================================
+v6.0.4 Update:
+==========================================================================================
+
+> Major Upadate
+-----------------
+1. When the client component (Client/Agent) does not manually bind the local address, it will automatically bind the local IPv4 or IPv6 address according to the remote address of the connection.
+
+> Third-party library Upadate
+-----------------
+1. openssl upgrade to version 3.0.16.
+2. llhttp upgrade to version 9.3.0.
+3. mimalloc upgrade to version 2.2.3.
+
+==========================================================================================
 v6.0.3 Update:
 ==========================================================================================
 

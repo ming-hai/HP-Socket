@@ -6,6 +6,9 @@ http_parser Modifications
 llhttp Modifications
 --------------------
 1. llhttp_api.c ignore warning: "-Wconversion", "-Wsign-conversion"
-1. llhttp_url.c ignore warning: "-Wconversion", "-Wsign-conversion"
-2. llhttp_internal.c ignore warning: "-Wconversion", "-Wsign-conversion" "-Wunused-variable" "-Wunreachable-code"
-3. llhttp.h, llhttp_url.h : LLHTTP_STRICT_MODE set default value 1
+2. llhttp_url.c ignore warning: "-Wconversion", "-Wsign-conversion"
+3. llhttp_internal.c ignore warning: "-Wconversion", "-Wsign-conversion" "-Wunused-variable" "-Wunreachable-code"
+4. llhttp_url.h : LLHTTP_STRICT_MODE set default value 1
+5. llhttp.h : delete codes below
+    #elif defined(_WIN32)
+    #define LLHTTP_EXPORT __declspec(dllexport)

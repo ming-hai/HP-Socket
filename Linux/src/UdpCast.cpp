@@ -132,35 +132,30 @@ BOOL CUdpCast::CheckStoping()
 
 BOOL CUdpCast::CreateClientSocket(LPCTSTR lpszRemoteAddress, USHORT usPort, LPCTSTR lpszBindAddress, HP_SOCKADDR& bindAddr)
 {
+	if(::IsStrNotEmpty(lpszBindAddress))
+	{
+		if(!::sockaddr_A_2_IN(lpszBindAddress, usPort, bindAddr))
+			return FALSE;
+	}
+
 	HP_SCOPE_HOST host(lpszRemoteAddress);
 	LPCTSTR lpszRealAddress = host.addr;
 
  	if(m_enCastMode == CM_BROADCAST && ::IsStrEmpty(lpszRealAddress))
 		lpszRealAddress = DEFAULT_IPV4_BROAD_CAST_ADDRESS;
 
-	if(!::GetSockAddrByHostName(lpszRealAddress, usPort, m_castAddr))
+	if(!::GetSockAddrByHostName(lpszRealAddress, usPort, m_castAddr, bindAddr.family))
 		return FALSE;
 
-	if(::IsStrEmpty(lpszBindAddress))
+	if(!bindAddr.IsSpecified())
 	{
 		bindAddr.family = m_castAddr.family;
 		bindAddr.SetPort(usPort);
-	}
-	else
-	{
-		if(!::sockaddr_A_2_IN(lpszBindAddress, usPort, bindAddr))
-			return FALSE;
 	}
 
 	if(m_enCastMode == CM_BROADCAST && bindAddr.IsIPv6())
 	{
 		::WSASetLastError(ERROR_PFNOSUPPORT);
-		return FALSE;
-	}
-
-	if(m_castAddr.family != bindAddr.family)
-	{
-		::WSASetLastError(ERROR_AFNOSUPPORT);
 		return FALSE;
 	}
 
